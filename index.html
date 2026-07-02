@@ -1,0 +1,867 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>노아의 방주 통합본 (Mobile 완벽 지원)</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #2c3e50;
+            font-family: 'Malgun Gothic', sans-serif;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+            color: white;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        #game-container {
+            width: 800px;
+            height: 600px;
+            background: linear-gradient(to bottom, #87CEEB, #E0F6FF);
+            position: relative;
+            overflow: hidden;
+            border: 4px solid #34495e;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        /* 📱 모바일 조작 패널 스타일 */
+        #mobile-controller {
+            width: 808px;
+            display: flex;
+            justify-content: space-between;
+            margin-top: 15px;
+            box-sizing: border-box;
+            padding: 0 10px;
+        }
+
+        .ctrl-btn {
+            width: 45%;
+            height: 80px;
+            background-color: rgba(52, 152, 219, 0.8);
+            border: 3px solid #2980b9;
+            border-radius: 15px;
+            color: white;
+            font-size: 2rem;
+            font-weight: bold;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            box-shadow: 0 5px 10px rgba(0,0,0,0.3);
+            touch-action: none; 
+            transition: background-color 0.1s, transform 0.1s;
+        }
+
+        .ctrl-btn:active {
+            background-color: rgba(41, 128, 185, 1);
+            transform: scale(0.98);
+        }
+
+        @media (max-width: 820px) {
+            body {
+                justify-content: flex-start;
+                padding-top: 10px;
+            }
+            #game-container {
+                width: 95vw;
+                height: 60vh;
+            }
+            #mobile-controller {
+                width: 95vw;
+                margin-top: 10px;
+            }
+            .ctrl-btn {
+                height: 70px;
+                font-size: 1.5rem;
+            }
+        }
+
+        .screen {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: rgba(44, 62, 80, 0.9);
+            z-index: 10;
+        }
+
+        .hidden { display: none !important; }
+
+        h1 { font-size: 3rem; text-shadow: 2px 2px #000; margin-bottom: 20px; text-align: center; }
+        h2 { font-size: 2rem; text-shadow: 1px 1px #000; margin-bottom: 15px; }
+        
+        .btn {
+            width: 200px;
+            padding: 15px;
+            margin: 10px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+            background-color: #e67e22;
+            color: white;
+            transition: 0.2s;
+        }
+        .btn:hover { background-color: #d35400; transform: scale(1.05); }
+        .btn-close { background-color: #c0392b; position: absolute; top: 10px; right: 10px; width: auto; padding: 10px 15px; }
+        
+        .btn-exit {
+            background-color: #7f8c8d;
+            font-size: 0.9rem;
+            padding: 8px 15px;
+            width: auto;
+            margin: 0 0 0 15px;
+            border-radius: 15px;
+        }
+
+        #ui {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: #333;
+            z-index: 5;
+            background: rgba(255,255,255,0.85);
+            padding: 10px 20px;
+            border-radius: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            display: flex;
+            box-sizing: border-box;
+            align-items: center;
+        }
+        
+        #lives-display { color: #e74c3c; font-size: 1.2rem; letter-spacing: 2px; }
+
+        #ark {
+            position: absolute;
+            bottom: 20px;
+            left: 350px;
+            width: 100px;
+            height: 40px;
+            background-color: #8B4513;
+            border-radius: 0 0 15px 15px;
+            border: 3px solid #5c2c16;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            transition: box-shadow 0.3s;
+        }
+
+        /* ✨ 배 등급별 반짝임 애니메이션 효과 */
+        .glow-gold {
+            animation: glowGoldAnim 1.5s infinite alternate;
+            background-color: #f1c40f !important;
+            border-color: #f39c12 !important;
+        }
+        @keyframes glowGoldAnim {
+            from { box-shadow: 0 0 10px #f1c40f, 0 5px 15px rgba(0,0,0,0.3); }
+            to { box-shadow: 0 0 25px #f39c12, 0 5px 20px rgba(241,196,15,0.6); }
+        }
+
+        .glow-rainbow {
+            animation: glowRainbowAnim 3s infinite linear;
+        }
+        @keyframes glowRainbowAnim {
+            0% { background-color: #e74c3c; box-shadow: 0 0 15px #e74c3c; }
+            20% { background-color: #e67e22; box-shadow: 0 0 15px #e67e22; }
+            40% { background-color: #f1c40f; box-shadow: 0 0 15px #f1c40f; }
+            60% { background-color: #2ecc71; box-shadow: 0 0 15px #2ecc71; }
+            80% { background-color: #3498db; box-shadow: 0 0 15px #3498db; }
+            100% { background-color: #9b59b6; box-shadow: 0 0 15px #9b59b6; }
+        }
+
+        /* ✝️ 거대 십자가 배 전용 스타일 */
+        .cross-ark-style {
+            background: #ffffff !important;
+            border: 4px dashed #f1c40f !important;
+            border-radius: 10px !important;
+            animation: crossGlow 1s infinite alternate !important;
+        }
+        @keyframes crossGlow {
+            from { box-shadow: 0 0 20px #fff, 0 0 40px #f1c40f; }
+            to { box-shadow: 0 0 35px #f1c40f, 0 0 70px #fff; }
+        }
+        #ark.cross-mode::after {
+            content: "✝️ 거대 십자가 방주 ✝️";
+            position: absolute;
+            width: 100%;
+            text-align: center;
+            top: 5px;
+            color: #d4af37;
+            font-weight: bold;
+            font-size: 26px;
+            text-shadow: 2px 2px 4px #000;
+        }
+
+        #ark.god-mode::after {
+            content: "✝️ GOD ARK ✝️";
+            position: absolute;
+            width: 100%;
+            text-align: center;
+            top: 5px;
+            color: gold;
+            font-weight: bold;
+            font-size: 24px;
+            text-shadow: 2px 2px 4px #000;
+        }
+
+        .falling-obj { position: absolute; font-size: 30px; user-select: none; z-index: 4; }
+
+        #shop-screen { overflow-y: auto; justify-content: flex-start; padding-top: 50px; }
+        .shop-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            width: 90%;
+            max-height: 400px;
+            overflow-y: auto;
+            padding: 10px;
+        }
+        @media (max-width: 600px) {
+            .shop-grid, .noah2-shop-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+        .shop-item {
+            background: #34495e;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            border: 2px solid #7f8c8d;
+        }
+
+        #roulette-display {
+            font-size: 2rem;
+            font-weight: bold;
+            margin: 20px 0;
+            padding: 15px 40px;
+            background: #2c3e50;
+            border-radius: 10px;
+            border: 3px solid #f1c40f;
+            min-width: 250px;
+            text-align: center;
+        }
+
+        .rain {
+            position: absolute;
+            background: white;
+            width: 1px;
+            height: 15px;
+            opacity: 0.3;
+        }
+
+        /* ==========================================================================
+            🌊 노아의 방주 2 전용 스타일
+           ========================================================================== */
+        #noah2-game-screen {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(to bottom, #1b4f72, #2c3e50);
+            z-index: 100;
+        }
+        .noah2-screen {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            background: rgba(21, 32, 43, 0.95);
+            z-index: 110;
+        }
+        .noah2-btn {
+            width: 220px; padding: 14px; margin: 8px;
+            font-size: 1.1rem; font-weight: bold; cursor: pointer;
+            border: none; border-radius: 6px;
+            background-color: #2980b9; color: white; transition: 0.2s;
+        }
+        .noah2-btn:hover { background-color: #3498db; transform: scale(1.05); }
+        .noah2-btn-close { background-color: #c0392b; position: absolute; top: 10px; right: 10px; width: auto; padding: 10px 15px; }
+        .noah2-btn-exit { background-color: #7f8c8d; font-size: 0.85rem; padding: 6px 12px; width: auto; margin-left: 15px; border-radius: 12px; }
+
+        #noah2-ui {
+            position: absolute; top: 15px; left: 15px;
+            font-size: 1.1rem; font-weight: bold; color: white; z-index: 105;
+            background: rgba(44, 62, 80, 0.85); padding: 10px 20px;
+            border-radius: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            display: flex; align-items: center; border: 1px solid #3498db;
+        }
+        #noah2-ark {
+            position: absolute; bottom: 20px; left: 350px;
+            width: 100px; height: 42px; background-color: #34495e;
+            border-radius: 0 0 18px 18px; border: 3px solid #2c3e50;
+        }
+        .noah2-shop-grid {
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+            width: 90%; max-height: 380px; overflow-y: auto; padding: 10px;
+        }
+        .wave-particle {
+            position: absolute; background: rgba(255,255,255,0.15);
+            bottom: 0; height: 4px; border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <div id="rain-layer"></div>
+
+    <div id="ui" class="hidden">
+        <div>
+            돈: <span id="money-display">0</span>원 | 
+            점수: <span id="score-display">0</span> | 
+            목숨: <span id="lives-display">❤️❤️❤️</span>
+        </div>
+        <button class="btn btn-exit" onclick="exitGame()">게임종료</button>
+    </div>
+
+    <div id="ark" class="hidden"></div>
+
+    <div id="main-screen" class="screen">
+        <h1>🌧️ 노아의 방주</h1>
+        <div style="background: rgba(0,0,0,0.4); padding: 10px 30px; border-radius: 10px; margin-bottom: 25px; font-size: 1.3rem; border: 2px dashed gold; color: #f1c40f;">
+            🏆 최고 기록: <span id="high-score-display">0</span>점 | 보유금: <span id="main-money-display">0</span>원
+        </div>
+        <button class="btn" onclick="startGame()">시작하기</button>
+        <button class="btn" onclick="openShop()">상점</button>
+        <button class="btn" style="background-color: #9b59b6;" onclick="openRoulette()">🎰 방주 룰렛 (100원)</button>
+        <button class="btn" onclick="openCodeModal()">코드입력</button>
+    </div>
+
+    <div id="shop-screen" class="screen hidden">
+        <button class="btn btn-close" onclick="closeShop()">X 닫기</button>
+        <h2>🚢 방주 상점</h2>
+        <div style="margin-bottom: 15px;">소지금: <span id="shop-money">0</span>원</div>
+        <div class="shop-grid" id="shop-grid"></div>
+    </div>
+
+    <div id="code-screen" class="screen hidden">
+        <button class="btn btn-close" onclick="closeCodeModal()">X 닫기</button>
+        <h2>🔑 코드 입력</h2>
+        <input type="text" id="code-input" placeholder="코드를 입력하세요" style="padding: 10px; font-size: 1.2rem; text-align:center; border-radius:5px; border:none; margin-bottom: 15px; color: black;">
+        <button class="btn" onclick="checkCode()">적용하기</button>
+    </div>
+
+    <div id="roulette-screen" class="screen hidden">
+        <h2>🎰 방주 뽑기 룰렛</h2>
+        <div id="roulette-display">???</div>
+        <button id="roulette-start-btn" class="btn" style="background-color: #9b59b6;" onclick="startRoulette()">돌리기!</button>
+        <button id="roulette-close-btn" class="btn btn-close" onclick="closeRoulette()">X 닫기</button>
+    </div>
+
+    <div id="noah2-game-screen" class="hidden">
+        <div id="noah2-wave-layer"></div>
+
+        <div id="noah2-ui" class="hidden">
+            <div>
+                돈: <span id="noah2-money-display">0</span>원 | 
+                점수: <span id="noah2-score-display">0</span> | 
+                목숨: <span id="noah2-lives-display">❤️❤️❤️</span>
+            </div>
+            <button class="noah2-btn noah2-btn-exit" onclick="noah2_exitGame()">게임종료</button>
+        </div>
+
+        <div id="noah2-ark" class="hidden"></div>
+
+        <div id="noah2-main-screen" class="noah2-screen">
+            <h1>🌧️ 노아의 방주 2</h1>
+            <div style="background: rgba(0,0,0,0.5); padding: 10px 30px; border-radius: 10px; margin-bottom: 20px; font-size: 1.2rem; border: 2px dashed #5dade2; color: #f1c40f;">
+                🏆 최고 기록: <span id="noah2-high-score-display">0</span>점 | 보유금: <span id="noah2-main-money-display">0</span>원
+            </div>
+            <button class="noah2-btn" onclick="noah2_startGame()">항해 시작</button>
+            <button class="noah2-btn" onclick="noah2_openShop()">조선소 (상점)</button>
+            <button class="noah2-btn" style="background-color: #d35400;" onclick="noah2_openRoulette()">🎰 방주 뽑기 (300원)</button>
+            <button class="noah2-btn" style="background-color: #27ae60; margin-top: 15px;" onclick="backToNoah1()">↩️ 복귀하기</button>
+        </div>
+
+        <div id="noah2-shop-screen" class="noah2-screen hidden">
+            <button class="noah2-btn noah2-btn-close" onclick="noah2_closeShop()">X 닫기</button>
+            <h2>🚢 신형 방주 조선소</h2>
+            <div style="margin-bottom: 15px;">보유 자금: <span id="noah2-shop-money">0</span>원</div>
+            <div class="noah2-shop-grid" id="noah2-shop-grid"></div>
+        </div>
+
+        <div id="noah2-roulette-screen" class="noah2-screen hidden">
+            <h2>🎰 선박 설계도 뽑기</h2>
+            <div id="noah2-roulette-display">???</div>
+            <button id="noah2-roulette-start-btn" class="noah2-btn" style="background-color: #d35400;" onclick="noah2_startRoulette()">설계도 뽑기!</button>
+            <button id="noah2-roulette-close-btn" class="noah2-btn noah2-btn-close" onclick="noah2_closeRoulette()">X 닫기</button>
+        </div>
+    </div>
+</div>
+
+<div id="mobile-controller">
+    <div class="ctrl-btn" id="btn-left">◀ LEFT</div>
+    <div class="ctrl-btn" id="btn-right">RIGHT ▶</div>
+</div>
+
+<script>
+    let money = 0;
+    let score = 0;
+    let highScore = 0;
+    let maxLives = 3;
+    let lives = 3;
+    let ownedArks = [1]; 
+    let equippedArkId = 1;
+    let currentArkWidth = 100;
+    let arkX = 350; 
+    const arkSpeed = 14; 
+    let isGodMode = false;
+    let gameActive = false;
+    let rainInterval = null;
+    let waveInterval = null;
+    
+    // ✝️ 십자가 치트 시스템 관련 변수
+    let isCrossMode = false;
+    let backupMoney = 0;
+    let backupOwnedArks = [];
+    let backupEquippedId = 1;
+
+    const keys = { Left: false, Right: false };
+
+    const container = document.getElementById('game-container');
+    const ark = document.getElementById('ark');
+    const moneyDisplay = document.getElementById('money-display');
+    const scoreDisplay = document.getElementById('score-display');
+    const livesDisplay = document.getElementById('lives-display');
+    const highScoreDisplay = document.getElementById('high-score-display');
+    const mainMoneyDisplay = document.getElementById('main-money-display');
+
+    const animalEmojis = ['🦁', '🐯', '🦒', '🐘', '🐖', '🐑', '🐔', '🐰', '🐼', '🦊'];
+
+    const arksData = [];
+    for(let i=1; i<=15; i++) {
+        let price = i * i * 200;
+        if (i === 1) price = 0; 
+        let grade = i >= 12 ? '무지개' : (i >= 6 ? '황금' : '일반');
+        arksData.push({ id: i, name: `방주 Lv.${i}`, price: price, width: 100 + (i * 18), grade: grade });
+    }
+    const crossArkItem = { id: 777, name: "✝️ 거대 십자가 방주 ✝️", price: 0, width: 760, grade: "신성" };
+
+    window.addEventListener('keydown', (e) => {
+        if (e.code === 'KeyA' || e.code === 'ArrowLeft') keys.Left = true;
+        if (e.code === 'KeyD' || e.code === 'ArrowRight') keys.Right = true;
+    });
+    window.addEventListener('keyup', (e) => {
+        if (e.code === 'KeyA' || e.code === 'ArrowLeft') keys.Left = false;
+        if (e.code === 'KeyD' || e.code === 'ArrowRight') keys.Right = false;
+    });
+
+    const btnLeft = document.getElementById('btn-left');
+    const btnRight = document.getElementById('btn-right');
+
+    btnLeft.addEventListener('touchstart', (e) => { e.preventDefault(); keys.Left = true; });
+    btnLeft.addEventListener('touchend', (e) => { e.preventDefault(); keys.Left = false; });
+    btnRight.addEventListener('touchstart', (e) => { e.preventDefault(); keys.Right = true; });
+    btnRight.addEventListener('touchend', (e) => { e.preventDefault(); keys.Right = false; });
+
+    btnLeft.addEventListener('mousedown', () => { keys.Left = true; });
+    btnLeft.addEventListener('mouseup', () => { keys.Left = false; });
+    btnLeft.addEventListener('mouseleave', () => { keys.Left = false; });
+    btnRight.addEventListener('mousedown', () => { keys.Right = true; });
+    btnRight.addEventListener('mouseup', () => { keys.Right = false; });
+    btnRight.addEventListener('mouseleave', () => { keys.Right = false; });
+
+    function updateMovement() {
+        if (!gameActive || isGodMode) return;
+        if (equippedArkId === 777) return; 
+
+        if (keys.Left) arkX -= arkSpeed;
+        if (keys.Right) arkX += arkSpeed;
+        const maxW = container.clientWidth || 800;
+        if (arkX < 0) arkX = 0;
+        if (arkX > maxW - currentArkWidth) arkX = maxW - currentArkWidth;
+        ark.style.left = arkX + 'px';
+    }
+
+    function startGame() {
+        document.getElementById('main-screen').classList.add('hidden');
+        document.getElementById('ui').classList.remove('hidden');
+        ark.classList.remove('hidden');
+        lives = maxLives; score = 0; gameActive = true;
+        updateUI(); applyArkSize();
+        if(!window.gameInterval) window.gameInterval = setInterval(spawnFallingObject, 700);
+        if(!window.moveInterval) window.moveInterval = setInterval(updateMovement, 1000 / 60);
+        createRain();
+    }
+
+    function applyArkSize() {
+        ark.className = '';
+        const maxW = container.clientWidth || 800;
+        
+        if (isGodMode) {
+            currentArkWidth = maxW + 50; arkX = -25; ark.style.left = arkX + 'px'; ark.classList.add('god-mode');
+        } else if (equippedArkId === 777) {
+            currentArkWidth = crossArkItem.width; 
+            arkX = (maxW - currentArkWidth) / 2;
+            ark.style.left = arkX + 'px';
+            ark.classList.add('cross-mode', 'cross-ark-style');
+        } else {
+            const currentArk = arksData.find(a => a.id === equippedArkId);
+            currentArkWidth = currentArk ? currentArk.width : 100;
+            if (arkX > maxW - currentArkWidth) arkX = maxW - currentArkWidth;
+            ark.style.left = arkX + 'px';
+
+            if (currentArk) {
+                if (currentArk.grade === '황금') ark.classList.add('glow-gold');
+                if (currentArk.grade === '무지개') ark.classList.add('glow-rainbow');
+            }
+        }
+        ark.style.width = currentArkWidth + 'px';
+    }
+
+    function updateUI() {
+        moneyDisplay.innerText = money.toLocaleString();
+        mainMoneyDisplay.innerText = money.toLocaleString();
+        scoreDisplay.innerText = score;
+        document.getElementById('shop-money').innerText = money.toLocaleString();
+        let heartStr = '';
+        for(let i=0; i<lives; i++) heartStr += '❤️';
+        if(lives === 0) heartStr = '❌ 게임오버';
+        livesDisplay.innerText = heartStr;
+        noah2_syncMoneyAndUI();
+    }
+
+    function spawnFallingObject() {
+        if (!gameActive) return;
+        const obj = document.createElement('div');
+        obj.className = 'falling-obj';
+        if (Math.random() < 0.10) { obj.innerText = '❤️'; obj.dataset.type = 'heart'; }
+        else { obj.innerText = animalEmojis[Math.floor(Math.random() * animalEmojis.length)]; obj.dataset.type = 'animal'; }
+        const maxW = container.clientWidth || 800;
+        obj.style.left = Math.random() * (maxW - 40) + 'px';
+        obj.style.top = '0px';
+        container.appendChild(obj);
+
+        let topPos = 0; const fallSpeed = 4 + Math.random() * 4;
+        const fallInterval = setInterval(() => {
+            if (!gameActive) { clearInterval(fallInterval); obj.remove(); return; }
+            topPos += fallSpeed; obj.style.top = topPos + 'px';
+            const arkRect = ark.getBoundingClientRect(); const objRect = obj.getBoundingClientRect();
+            if (objRect.bottom >= arkRect.top && objRect.bottom <= arkRect.bottom) {
+                if (objRect.right >= arkRect.left && objRect.left <= arkRect.right) {
+                    if (obj.dataset.type === 'heart') { if (lives < maxLives) lives++; }
+                    else { 
+                        score++; 
+                        if (equippedArkId === 777) { money += 1000; } 
+                        else { money += isGodMode ? 500 : 10; }
+                    }
+                    updateUI(); clearInterval(fallInterval); obj.remove();
+                }
+            }
+            if (topPos > (container.clientHeight || 600)) {
+                clearInterval(fallInterval); obj.remove();
+                if (obj.dataset.type === 'animal' && !isGodMode) { lives--; updateUI(); if (lives <= 0) gameOver(); }
+            }
+        }, 20);
+    }
+
+    function gameOver() { gameActive = false; if(score > highScore) { highScore = score; highScoreDisplay.innerText = highScore; } alert(`최종 점수: ${score}`); resetGameToMain(); }
+    function exitGame() { if(confirm("메인화면으로 나갑니다.")) { gameActive = false; resetGameToMain(); } }
+    function resetGameToMain() { 
+        clearInterval(window.gameInterval); clearInterval(window.moveInterval); clearInterval(rainInterval);
+        window.gameInterval = null; window.moveInterval = null; 
+        document.getElementById('ui').classList.add('hidden'); ark.classList.add('hidden'); document.getElementById('main-screen').classList.remove('hidden'); document.querySelectorAll('.falling-obj').forEach(el => el.remove()); updateUI(); 
+    }
+    
+    function createRain() { 
+        const layer = document.getElementById('rain-layer'); layer.innerHTML = ''; 
+        const maxW = container.clientWidth || 800;
+        for(let i=0; i<30; i++) { 
+            const drop = document.createElement('div'); drop.className = 'rain'; 
+            drop.style.left = Math.random() * maxW + 'px'; 
+            drop.style.top = Math.random() * -20 + 'px';
+            layer.appendChild(drop); 
+        } 
+        if(rainInterval) clearInterval(rainInterval);
+        rainInterval = setInterval(() => {
+            const drops = document.querySelectorAll('.rain');
+            const maxH = container.clientHeight || 600;
+            drops.forEach(d => {
+                let currentTop = parseFloat(d.style.top || 0);
+                currentTop += 8;
+                if(currentTop > maxH) currentTop = -15;
+                d.style.top = currentTop + 'px';
+            });
+        }, 20);
+    }
+    
+    function openShop() { document.getElementById('shop-screen').classList.remove('hidden'); updateUI(); renderShop(); }
+    function closeShop() { document.getElementById('shop-screen').classList.add('hidden'); }
+
+    function renderShop() {
+        const grid = document.getElementById('shop-grid'); grid.innerHTML = '';
+        let displayArks = [...arksData];
+        if (isCrossMode) { displayArks.unshift(crossArkItem); }
+
+        displayArks.forEach(item => {
+            const box = document.createElement('div'); box.className = 'shop-item';
+            const isOwned = ownedArks.includes(item.id); const isEquipped = equippedArkId === item.id;
+            
+            if(item.grade === '황금') box.classList.add('glow-gold');
+            if(item.grade === '무지개') box.classList.add('glow-rainbow');
+            if(item.id === 777) box.classList.add('cross-ark-style');
+
+            let btnHTML = isEquipped ? `<button class="btn" style="width:100%; padding:5px; background-color:#2ecc71;">장착됨</button>` :
+                          isOwned ? `<button class="btn" style="width:100%; padding:5px; background-color:#3498db;" onclick="equipArk(${item.id})">장착하기</button>` :
+                                    `<button class="btn" style="width:100%; padding:5px;" onclick="buyArk(${item.id}, ${item.price})">구매</button>`;
+            box.innerHTML = `<h3>${item.name}</h3><p>${item.id===777 ? '치트 해금' : item.price + '원'}</p>${btnHTML}`; grid.appendChild(box);
+        });
+    }
+
+    function buyArk(id, price) { if (money >= price) { money -= price; ownedArks.push(id); equippedArkId = id; renderShop(); if(gameActive) applyArkSize(); updateUI(); } }
+    function equipArk(id) { equippedArkId = id; renderShop(); if(gameActive) applyArkSize(); }
+    function openRoulette() { document.getElementById('roulette-screen').classList.remove('hidden'); document.getElementById('roulette-display').innerText = '???'; }
+    function closeRoulette() { document.getElementById('roulette-screen').classList.add('hidden'); }
+    function startRoulette() {
+        if (money < 100) { alert("돈이 부족합니다!"); return; } 
+        money -= 100; updateUI();
+        const rand = arksData[Math.floor(Math.random() * arksData.length)];
+        document.getElementById('roulette-display').innerText = rand.name;
+        if (!ownedArks.includes(rand.id)) ownedArks.push(rand.id);
+    }
+
+    function openCodeModal() { document.getElementById('code-screen').classList.remove('hidden'); document.getElementById('code-input').value = ''; }
+    function closeCodeModal() { document.getElementById('code-screen').classList.add('hidden'); }
+    function checkCode() {
+        const code = document.getElementById('code-input').value.trim();
+        
+        if (code === '십자가') {
+            if (!isCrossMode) {
+                isCrossMode = true;
+                backupMoney = money;
+                backupOwnedArks = [...ownedArks];
+                backupEquippedId = equippedArkId;
+
+                money = 9999999;
+                if(!ownedArks.includes(777)) ownedArks.push(777);
+                equippedArkId = 777;
+                
+                alert("✝️ 신성한 힘이 깃듭니다! 거대 십자가 방주가 해금되었으며 돈이 무제한으로 고정됩니다. (이동 불가 / 획득 재화 증폭)");
+            } else {
+                isCrossMode = false;
+                money = backupMoney;
+                ownedArks = backupOwnedArks;
+                equippedArkId = backupEquippedId;
+                alert("원래 상태로 안전하게 복구되었습니다.");
+            }
+            closeCodeModal();
+            updateUI();
+            applyArkSize();
+        }
+        else if (code === '홍수') { closeCodeModal(); document.getElementById('noah2-game-screen').classList.remove('hidden'); noah2_initUI(); }
+        else if (code === '방주') { money += 500; updateUI(); closeCodeModal(); }
+        else if (code === '신') { isGodMode = !isGodMode; applyArkSize(); closeCodeModal(); alert(isGodMode ? "갓 모드 활성화!" : "갓 모드 해제"); }
+        else { alert("코드를 확인하세요."); }
+    }
+
+    /* ==========================================================================
+        🌊 노아의 방주 2 전용 스크립트 리액터
+       ========================================================================== */
+    let noah2_highScore = 0; let noah2_score = 0; let noah2_lives = 3; let noah2_gameActive = false;
+    let noah2_arkX = 350; let noah2_velocityX = 0; let noah2_waveTimer = 0;
+    let noah2_ownedArks = [1]; let noah2_equippedId = 1; let noah2_physicsId = null;
+
+    const noah2_arksData = [];
+    for(let i=1; i<=10; i++) { noah2_arksData.push({ id: i, name: `쇄빙선 Lv.${i}`, price: i * 500, width: 90 + (i * 20) }); }
+
+    function noah2_initUI() { document.getElementById('noah2-high-score-display').innerText = noah2_highScore; noah2_syncMoneyAndUI(); }
+    function noah2_syncMoneyAndUI() {
+        if(document.getElementById('noah2-money-display')) document.getElementById('noah2-money-display').innerText = money.toLocaleString();
+        if(document.getElementById('noah2-main-money-display')) document.getElementById('noah2-main-money-display').innerText = money.toLocaleString();
+        if(document.getElementById('noah2-shop-money')) document.getElementById('noah2-shop-money').innerText = money.toLocaleString();
+    }
+
+    function noah2_startGame() {
+        document.getElementById('noah2-main-screen').classList.add('hidden');
+        document.getElementById('noah2-ui').classList.remove('hidden');
+        document.getElementById('noah2-ark').classList.remove('hidden');
+        noah2_lives = 3; noah2_score = 0; noah2_arkX = 350; noah2_velocityX = 0; noah2_gameActive = true;
+        noah2_updateUI(); noah2_applyArkSize();
+        if(!window.noah2_spawnInterval) window.noah2_spawnInterval = setInterval(noah2_spawnObject, 600);
+        if(noah2_physicsId) cancelAnimationFrame(noah2_physicsId);
+        noah2_physicsLoop(); noah2_createWaves();
+    }
+
+    function noah2_physicsLoop() {
+        if(!noah2_gameActive) return;
+        if (keys.Left) noah2_velocityX -= 0.8;
+        if (keys.Right) noah2_velocityX += 0.8;
+        noah2_waveTimer += 0.03;
+        noah2_velocityX *= 0.92;
+        noah2_arkX += (noah2_velocityX + Math.sin(noah2_waveTimer) * 1.5);
+
+        const maxW = container.clientWidth || 800;
+        const currentArk = noah2_arksData.find(a => a.id === noah2_equippedId);
+        const w = currentArk ? currentArk.width : 110;
+        if(noah2_arkX < 0) { noah2_arkX = 0; noah2_velocityX = 0; }
+        if(noah2_arkX > maxW - w) { noah2_arkX = maxW - w; noah2_velocityX = 0; }
+        document.getElementById('noah2-ark').style.left = noah2_arkX + 'px';
+        noah2_physicsId = requestAnimationFrame(noah2_physicsLoop);
+    }
+
+    function noah2_applyArkSize() {
+        const currentArk = noah2_arksData.find(a => a.id === noah2_equippedId);
+        document.getElementById('noah2-ark').style.width = (currentArk ? currentArk.width : 110) + 'px';
+    }
+
+    function noah2_updateUI() {
+        document.getElementById('noah2-money-display').innerText = money.toLocaleString();
+        document.getElementById('noah2-score-display').innerText = noah2_score;
+        let heartStr = ''; for(let i=0; i<noah2_lives; i++) heartStr += '❤️';
+        document.getElementById('noah2-lives-display').innerText = heartStr || '❌';
+    }
+
+    function noah2_spawnObject() {
+        if(!noah2_gameActive) return;
+        const obj = document.createElement('div'); obj.className = 'falling-obj';
+        const randType = Math.random();
+        if(randType < 0.1) { obj.innerText = '❤️'; obj.dataset.type = 'heart'; }
+        else if (randType < 0.3) { obj.innerText = '🪨'; obj.dataset.type = 'rock'; }
+        else { obj.innerText = animalEmojis[Math.floor(Math.random() * animalEmojis.length)]; obj.dataset.type = 'animal'; }
+        
+        const maxW = container.clientWidth || 800;
+        obj.style.left = Math.random() * (maxW - 40) + 'px';
+        obj.style.top = '0px';
+        container.appendChild(obj);
+
+        let topPos = 0; 
+        const fallSpeed = 5 + Math.random() * 5; 
+        
+        const fallInterval = setInterval(() => {
+            if (!noah2_gameActive) { clearInterval(fallInterval); obj.remove(); return; }
+            topPos += fallSpeed; 
+            obj.style.top = topPos + 'px';
+            
+            const arkRect = document.getElementById('noah2-ark').getBoundingClientRect(); 
+            const objRect = obj.getBoundingClientRect();
+            
+            if (objRect.bottom >= arkRect.top && objRect.bottom <= arkRect.bottom) {
+                if (objRect.right >= arkRect.left && objRect.left <= arkRect.right) {
+                    if (obj.dataset.type === 'heart') { 
+                        if (noah2_lives < 3) noah2_lives++; 
+                    } else if (obj.dataset.type === 'rock') {
+                        noah2_lives--; 
+                    } else { 
+                        noah2_score++; 
+                        money += 30; 
+                    }
+                    noah2_updateUI(); 
+                    clearInterval(fallInterval); 
+                    obj.remove();
+                }
+            }
+            
+            if (topPos > (container.clientHeight || 600)) {
+                clearInterval(fallInterval); 
+                obj.remove();
+                if (obj.dataset.type === 'animal') { 
+                    noah2_lives--; 
+                    noah2_updateUI(); 
+                    if (noah2_lives <= 0) noah2_gameOver(); 
+                }
+            }
+        }, 20);
+    }
+
+    function noah2_gameOver() { 
+        noah2_gameActive = false; 
+        if(noah2_score > noah2_highScore) { 
+            noah2_highScore = noah2_score; 
+        } 
+        alert(`[노아의 방주 2] 최종 점수: ${noah2_score}`); 
+        noah2_resetGameToMain(); 
+    }
+    
+    function noah2_exitGame() { 
+        if(confirm("2편 메인화면으로 나갑니다.")) { 
+            noah2_gameActive = false; 
+            noah2_resetGameToMain(); 
+        } 
+    }
+    
+    function noah2_resetGameToMain() { 
+        clearInterval(window.noah2_spawnInterval); 
+        window.noah2_spawnInterval = null; 
+        if(noah2_physicsId) cancelAnimationFrame(noah2_physicsId);
+        document.getElementById('noah2-ui').classList.add('hidden'); 
+        document.getElementById('noah2-ark').classList.add('hidden'); 
+        document.getElementById('noah2-main-screen').classList.remove('hidden'); 
+        document.querySelectorAll('#noah2-game-screen .falling-obj').forEach(el => el.remove()); 
+        noah2_updateUI(); 
+    }
+
+    function noah2_createWaves() {
+        const layer = document.getElementById('noah2-wave-layer');
+        layer.innerHTML = '';
+        const maxW = container.clientWidth || 800;
+        for(let i=0; i<15; i++) {
+            const wave = document.createElement('div');
+            wave.className = 'wave-particle';
+            wave.style.left = Math.random() * maxW + 'px';
+            wave.style.width = (50 + Math.random() * 100) + 'px';
+            layer.appendChild(wave);
+        }
+    }
+
+    function noah2_openShop() { document.getElementById('noah2-shop-screen').classList.remove('hidden'); noah2_renderShop(); }
+    function noah2_closeShop() { document.getElementById('noah2-shop-screen').add('hidden'); }
+    
+    function noah2_renderShop() {
+        const grid = document.getElementById('noah2-shop-grid'); 
+        grid.innerHTML = '';
+        noah2_arksData.forEach(item => {
+            const box = document.createElement('div'); 
+            box.className = 'shop-item';
+            const isOwned = noah2_ownedArks.includes(item.id); 
+            const isEquipped = noah2_equippedId === item.id;
+            
+            let btnHTML = isEquipped ? `<button class="noah2-btn" style="width:100%; padding:5px; background-color:#2ecc71;">장착됨</button>` :
+                          isOwned ? `<button class="noah2-btn" style="width:100%; padding:5px; background-color:#3498db;" onclick="noah2_equipArk(${item.id})">장착하기</button>` :
+                                    `<button class="noah2-btn" style="width:100%; padding:5px;" onclick="noah2_buyArk(${item.id}, ${item.price})">구매</button>`;
+            box.innerHTML = `<h3>${item.name}</h3><p>${item.price}원</p>${btnHTML}`; 
+            grid.appendChild(box);
+        });
+    }
+
+    function noah2_buyArk(id, price) { 
+        if (money >= price) { 
+            money -= price; 
+            noah2_ownedArks.push(id); 
+            noah2_equippedId = id; 
+            noah2_renderShop(); 
+            if(noah2_gameActive) noah2_applyArkSize(); 
+            updateUI(); 
+        } else {
+            alert("돈이 부족합니다!");
+        }
+    }
+    
+    function noah2_equipArk(id) { noah2_equippedId = id; noah2_renderShop(); if(noah2_gameActive) noah2_applyArkSize(); }
+    function noah2_openRoulette() { document.getElementById('noah2-roulette-screen').classList.remove('hidden'); document.getElementById('noah2-roulette-display').innerText = '???'; }
+    function noah2_closeRoulette() { document.getElementById('noah2-roulette-screen').classList.add('hidden'); }
+    
+    function noah2_startRoulette() {
+        if (money < 300) { alert("돈이 부족합니다! (300원 필요)"); return; } 
+        money -= 300; 
+        updateUI();
+        const rand = noah2_arksData[Math.floor(Math.random() * noah2_arksData.length)];
+        document.getElementById('noah2-roulette-display').innerText = rand.name;
+        if (!noah2_ownedArks.includes(rand.id)) noah2_ownedArks.push(rand.id);
+    }
+
+    function backToNoah1() {
+        document.getElementById('noah2-game-screen').classList.add('hidden');
+        resetGameToMain();
+    }
+</script>
+</body>
+</html>
